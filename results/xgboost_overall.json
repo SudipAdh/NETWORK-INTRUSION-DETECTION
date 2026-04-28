@@ -1,0 +1,12 @@
+{
+  "accuracy": 0.7865951029098651,
+  "precision_weighted": 0.8335259655114927,
+  "recall_weighted": 0.7865951029098651,
+  "f1_weighted": 0.7582376046079666,
+  "f1_macro": 0.6336824732777656,
+  "roc_auc_ovr": 0.9537293842777798,
+  "model": "XGBoost",
+  "cv_f1_weighted_mean": 0.9990636198662977,
+  "cv_f1_weighted_std": 0.00020340792827472907,
+  "wall_time_seconds": 90.1
+}

@@ -1,0 +1,12 @@
+{
+  "accuracy": 0.7790986515259049,
+  "precision_weighted": 0.8018310601580617,
+  "recall_weighted": 0.7790986515259049,
+  "f1_weighted": 0.7631267936365181,
+  "f1_macro": 0.5745199740359805,
+  "roc_auc_ovr": 0.8970433340409453,
+  "model": "Logistic Regression",
+  "cv_f1_weighted_mean": 0.9756340396083962,
+  "cv_f1_weighted_std": 0.0014562827661733719,
+  "wall_time_seconds": 330.3
+}

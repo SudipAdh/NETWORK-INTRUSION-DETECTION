@@ -1,0 +1,49 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- macOS / editors ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# --- LaTeX build artefacts ---
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.nav
+*.snm
+*.vrb
+
+# --- Dataset (download separately; see README) ---
+dataset/
+data/
+*.arff
+
+# --- Built keras/sklearn models ---
+*.joblib
+*.pkl
+
+# --- Editor scratchpads ---
+.claude/

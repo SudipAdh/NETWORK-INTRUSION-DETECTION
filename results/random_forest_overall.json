@@ -1,0 +1,12 @@
+{
+  "accuracy": 0.7505322924059616,
+  "precision_weighted": 0.8134006139679893,
+  "recall_weighted": 0.7505322924059616,
+  "f1_weighted": 0.7112228841755389,
+  "f1_macro": 0.5381766605585122,
+  "roc_auc_ovr": 0.947607084459893,
+  "model": "Random Forest",
+  "cv_f1_weighted_mean": 0.998718462950517,
+  "cv_f1_weighted_std": 0.0001723155773565032,
+  "wall_time_seconds": 53.8
+}
