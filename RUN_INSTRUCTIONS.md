@@ -8,6 +8,17 @@ intrusion detection pipeline submitted as coursework. Following these
 steps will reproduce every figure, table, and result in
 `research_paper/paper.pdf`.
 
+## Demo video
+
+A short screencast of the code running is available at:
+
+<https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing>
+
+The video walks through the Jupyter notebook from raw data inspection
+through preprocessing, training, evaluation, and the per-class results.
+If the link does not load, please contact the author at
+`xudip12@gmail.com`.
+
 ---
 
 ## 1. What's in this submission

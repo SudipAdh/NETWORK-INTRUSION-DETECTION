@@ -4,6 +4,8 @@ A reproducible comparative study of three classical machine-learning algorithms 
 
 This is the M.Sc. Machine Learning coursework project for **Sudip Adhikari (250578)**, Softwarica College of IT & E-Commerce (Coventry University).
 
+**Demo video:** <https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing>
+
 ---
 
 ## Headline results (KDDTest+)
