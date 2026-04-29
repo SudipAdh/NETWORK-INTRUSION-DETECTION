@@ -29,7 +29,7 @@
 \pagestyle{fancy}
 \fancyhf{}
 \fancyhead[L]{SUDIP ADHIKARI -- 250578}
-\fancyhead[R]{Machine Learning -- NID Project}
+\fancyhead[R]{STW7072CEM -- Machine Learning -- NID Project}
 \fancyfoot[C]{Page \thepage}
 
 \definecolor{codebg}{RGB}{248,248,248}
@@ -75,7 +75,13 @@
         \vspace{0.3em}
         {\large\itshape (Coventry University) \par}
 
-        \vspace{2.0cm}
+        \vspace{0.8cm}
+
+        {\normalsize Module: \textbf{STW7072CEM} -- Machine Learning \par}
+        \vspace{0.3em}
+        {\normalsize Coursework Submission, M.Sc.\ Computer Engineering \par}
+
+        \vspace{1.5cm}
 
         \includegraphics[width=0.6\textwidth]{college_logo.png}
 
@@ -108,6 +114,9 @@ Cyberattacks have become a daily fact of life for organisations of every size. T
 
 The catch is that ``machine learning'' is not a single thing. Different algorithms make different assumptions about the data, behave differently under class imbalance, and have very different training costs. The natural question --- and the question this project answers --- is: \emph{when you sit down to build an ML-based intrusion detector, which algorithm should you start with, and what trade-offs should you expect?}
 
+\subsection{Why This Matters in Nepal}
+The problem is acute in fast-digitalising economies such as Nepal. Since 2018, online banking, e-government services (Nagarik App, e-Sewa), and digital commerce have grown rapidly, but the security workforce and budgets of most local institutions have not kept pace. The Nepal Cyber Bureau and the Computer Emergency Response Team (CERT) have reported a steady year-on-year rise in incidents targeting government portals, banks, and small businesses --- a profile in which signature-only IDS deployments are common and ML-augmented detection is rare. Building a clear, reproducible understanding of how off-the-shelf classical machine learning algorithms behave on intrusion data is therefore not just an academic exercise; it is a useful step toward defensive tools that can be deployed by institutions with limited security engineering capacity.
+
 \subsection{Project Objectives}
 The project has four objectives.
 
@@ -128,6 +137,18 @@ The original project proposal listed six algorithms (LR, KNN, Decision Tree, Ran
 \end{itemize}
 
 This trio answers a clean question: \emph{how much detection power do you actually gain by moving from a simple linear model to bagged trees, and from bagged trees to boosted trees?}
+
+\subsection{Original Contributions}
+\label{sec:contributions}
+This project is a like-for-like comparison, but it is not a replication. Its original contributions --- in particular the points where it differs from typical NSL-KDD studies --- are as follows:
+
+\begin{enumerate}
+    \item \textbf{One identical pipeline for three paradigms.} Logistic Regression, Random Forest, and XGBoost are evaluated under one preprocessing pipeline, one resampling protocol, and one evaluation regime. Most prior NSL-KDD studies vary preprocessing across models, which makes their headline numbers hard to compare.
+    \item \textbf{Per-fold rather than pre-pooled SMOTE.} SMOTE is applied \emph{inside} each cross-validation fold, on the training side only. The widespread shortcut of resampling once before splitting leaks synthetic minority instances into validation folds and inflates cross-validation scores by several points; this report documents the difference explicitly.
+    \item \textbf{Honest reporting of the cross-validation versus held-out gap.} Both numbers are reported side by side, and the roughly 22-percentage-point gap is traced to NSL-KDD's deliberate inclusion of unseen attack subtypes in the test split --- a property that papers reporting only cross-validation scores quietly hide.
+    \item \textbf{Per-class focus.} Per-class precision, recall, and F1 are reported throughout. Macro F1 is argued as the correct primary metric on this data, not accuracy or weighted F1.
+    \item \textbf{Practical, deployable feature importance.} The features that drive predictions (\texttt{service\_eco\_i}, \texttt{flag\_S0}, \texttt{dst\_host\_serror\_rate}) are quantities a network analyst already monitors, which makes the model's reasoning auditable rather than opaque.
+\end{enumerate}
 
 \subsection{Report Structure}
 Section~\ref{sec:dataset} describes the NSL-KDD dataset, its class structure, and why it is the standard benchmark in this area. Section~\ref{sec:methodology} walks through the methodology: the preprocessing pipeline, how class imbalance is handled with SMOTE, what each algorithm does in plain terms, and how evaluation is set up. Section~\ref{sec:implementation} details the implementation, including the project layout and the most important code blocks. Section~\ref{sec:results} reports the experimental results --- overall comparison, per-class performance, confusion matrices, feature importance --- and discusses what the numbers mean. Section~\ref{sec:limitations} is honest about what this study does not do, and Section~\ref{sec:conclusion} closes with what was learned.
@@ -394,13 +415,20 @@ python3 -m venv .venv
 PYTHONPATH=src .venv/bin/python src/run_experiments.py
 \end{lstlisting}
 
-\subsection{Source Code Repository}
+\subsection{Project Resources}
 \label{sec:repo}
-All code, LaTeX sources for this report and the accompanying research paper, generated figures, and per-model result files are published in a public GitHub repository:
-\begin{center}
-\url{https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION}
-\end{center}
-The repository mirrors the layout described in this report (\texttt{src/}, \texttt{figures/}, \texttt{results/}, \texttt{assignment\_report/}, \texttt{research\_paper/}). The NSL-KDD dataset itself is not redistributed and must be downloaded separately --- the README documents the canonical Kaggle and University of New Brunswick mirrors.
+All code, LaTeX sources for this report and the accompanying IEEE-format research paper, generated figures, per-model result files, the runnable Jupyter notebook, and a recorded screencast of the pipeline executing are publicly accessible:
+
+\begin{itemize}[leftmargin=2.2em]
+    \item \textbf{Source code repository} (GitHub):\\
+          \url{https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION}
+    \item \textbf{Demo screencast} (Google Drive):\\
+          \url{https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing}
+    \item \textbf{IEEE research paper:} \texttt{research\_paper/paper.pdf} in the repository.
+    \item \textbf{Runnable Jupyter notebook:} \texttt{notebooks/NID\_pipeline.ipynb} in the repository.
+\end{itemize}
+
+The repository mirrors the layout described in this report (\texttt{src/}, \texttt{notebooks/}, \texttt{figures/}, \texttt{results/}, \texttt{assignment\_report/}, \texttt{research\_paper/}). The NSL-KDD dataset itself is not redistributed in the public repository and must be downloaded separately from Kaggle or the University of New Brunswick --- the README documents both. The submitted coursework zip, on the other hand, contains the dataset for offline marker access.
 
 %% ============================================================
 \section{Results and Discussion}
@@ -538,6 +566,28 @@ This study has clear limitations.
 \textbf{Single resampling strategy.} We only used SMOTE. ADASYN, Borderline-SMOTE, SMOTE-Tomek, and undersampling techniques would each give slightly different rare-class behaviour. Cost-sensitive learning --- adjusting the loss so that rare-class errors are penalised more --- is a particularly interesting direction we did not explore.
 
 \textbf{R2L detection remains poor.} The strongest model in the study still recalls only 15\% of R2L attacks on the test set. This is a fundamental limit of connection-level features for R2L-style attacks, where the malicious behaviour lives in the payload (e.g.\ password attempts, exploit strings) rather than in connection statistics. A production system would augment this kind of model with payload inspection or behavioural baselining.
+
+%% ============================================================
+\section{Social, Ethical, Legal, and Professional Considerations}
+\label{sec:ethics}
+%% ============================================================
+
+A network intrusion detector is not a neutral piece of software, and any honest report on building one should make its non-technical implications explicit.
+
+\subsection{Privacy}
+Even when an IDS examines only flow-level metadata --- packet counts, protocol flags, byte volumes, connection durations --- the activity is still a form of surveillance. The features used in this study are metadata only, not packet payloads, but a deployed IDS can still profile user behaviour in fine detail. A responsible deployment must minimise data retention, segregate IDS logs from identifiable user data wherever possible, and disclose monitoring practice to users in privacy notices.
+
+\subsection{False Positives and Asymmetric Harm}
+The errors made by an ML detector are not symmetric in their human impact. A false negative may let an attack through; a false positive can lock a legitimate user out of a service or escalate to a human investigation that is itself intrusive. The 60--80\% false-negative rate observed for R2L and U2R in this study (Section~\ref{sec:results}) means classical-ML IDS should never be the sole defence against these attack families; layered detection (host-based, behavioural, payload-inspection) is required to compensate. Equally, an over-tuned model that flags too many connections becomes operational noise that analysts will eventually ignore --- sometimes called ``alert fatigue'' --- and a noisy detector can be more dangerous than no detector at all.
+
+\subsection{Bias and Dataset Provenance}
+NSL-KDD's underlying traffic comes from the DARPA 1998 simulation, which represents US-military network conditions of nearly three decades ago. A detector trained on this data inherits its blind spots: encrypted traffic is absent, modern application-layer attacks (HTTP-based exploits, modern phishing infrastructure) are not represented, and the geographic and linguistic diversity of more recent traffic is missing. A Nepal-deployed system trained on NSL-KDD alone would be likely to under-detect locally relevant attack patterns. A responsible production deployment would require fine-tuning on representative local traffic, not direct transplantation.
+
+\subsection{Legal Context}
+In Nepal, network monitoring is governed by the \emph{Electronic Transactions Act 2008} and the \emph{Privacy Act 2018}, both of which require lawful basis and proportionality for processing communications data. International deployments would additionally need to consider GDPR Article~6 (lawful basis) and Article~32 (security of processing). The use of synthetic data (SMOTE) for training does not by itself raise additional legal exposure --- synthetic samples do not contain real user information --- but the underlying training data does, so retention and access controls apply to it. Cross-border transfer of training data raises additional questions that must be cleared before deployment.
+
+\subsection{Professional Responsibility}
+Reporting only cross-validation scores --- the convenient but misleading number that many NSL-KDD papers quote --- misrepresents what a model can do once deployed. Professional integrity requires that practitioners separate distribution-fitting performance from generalisation performance and communicate the difference to non-technical decision makers. This report takes that requirement seriously, which is why both numbers are reported and why the gap between them is discussed at length. More broadly, deploying an IDS without complementary controls (logging governance, incident response plans, transparent appeal mechanisms for users flagged by the system) is professionally negligent regardless of how accurate the model itself is.
 
 %% ============================================================
 \section{Conclusion}
@@ -727,5 +777,29 @@ U2R     & 0.6471 & 0.3284 & 0.4356 &      67 \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+%% ============================================================
+\section*{Appendix D: Per-Fold Cross-Validation Evidence}
+\addcontentsline{toc}{section}{Appendix D: Per-Fold Cross-Validation Evidence}
+%% ============================================================
+
+Table~\ref{tab:cvfolds} reports the weighted F1 score on each fold of the 5-fold stratified cross-validation, after per-fold SMOTE resampling, for each of the three algorithms. The very small standard deviation (between 0.0002 and 0.0015) indicates that fold-to-fold variation is negligible compared to the gap with held-out test performance --- which reinforces the claim in Section~\ref{sec:results} that the CV-vs-test gap is a property of the dataset, not statistical noise.
+
+\begin{table}[H]
+\centering
+\caption{Per-fold weighted F1 on the NSL-KDD training set (5-fold stratified CV with SMOTE applied per fold).}
+\label{tab:cvfolds}
+\begin{tabular}{lccccc|cc}
+\toprule
+Algorithm & Fold 1 & Fold 2 & Fold 3 & Fold 4 & Fold 5 & Mean & Std \\
+\midrule
+Logistic Regression & 0.9777 & 0.9766 & 0.9750 & 0.9735 & 0.9753 & 0.9756 & 0.0015 \\
+Random Forest       & 0.9988 & 0.9987 & 0.9989 & 0.9987 & 0.9984 & 0.9987 & 0.0002 \\
+XGBoost             & 0.9990 & 0.9991 & 0.9994 & 0.9991 & 0.9988 & 0.9991 & 0.0002 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These numbers were captured directly from the experiment log file (\texttt{results/run.log}), which is also published in the GitHub repository.
 
 \end{document}
