@@ -2,9 +2,14 @@
 
 A reproducible comparative study of three classical machine-learning algorithms — **Logistic Regression**, **Random Forest**, and **XGBoost** — on the **NSL-KDD** benchmark for multi-class network intrusion detection (Normal, DoS, Probe, R2L, U2R).
 
-This is the M.Sc. Machine Learning coursework project for **Sudip Adhikari (250578)**, Softwarica College of IT & E-Commerce (Coventry University).
+This is the M.Sc. Machine Learning coursework project (module **STW7072CEM**) for **Sudip Adhikari (250578)**, Softwarica College of IT & E-Commerce in collaboration with Coventry University.
 
-**Demo video:** <https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing>
+| Resource | Link |
+|----------|------|
+| **GitHub repository** | <https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION> |
+| **Demo screencast** | <https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing> |
+| **Research paper (assessed)** | [`research_paper/paper.pdf`](research_paper/paper.pdf) |
+| **Long-form report** | [`assignment_report/assignment_report.pdf`](assignment_report/assignment_report.pdf) |
 
 ---
 
@@ -16,9 +21,7 @@ This is the M.Sc. Machine Learning coursework project for **Sudip Adhikari (2505
 | Random Forest       |  75.05 % |      0.7112 |   0.5382 |  0.9476 |    53.8 s  |
 | **XGBoost**         |**78.66 %**|     0.7582 | **0.6337** | **0.9537** | 90.1 s |
 
-XGBoost wins on three of four held-out metrics and is the only model with credible U2R detection (per-class F1 = 0.4356). The cross-validation weighted F1 scores (0.97 – 0.99) are ~22 percentage points higher than test scores — a property of NSL-KDD deliberately including unseen attack subtypes in its test split, and a number that papers reporting only CV results quietly hide.
-
-Full discussion: see [`assignment_report/assignment_report.pdf`](assignment_report/assignment_report.pdf) and the IEEE-format paper at [`research_paper/paper.pdf`](research_paper/paper.pdf).
+XGBoost wins on three of four held-out metrics and is the only model with credible U2R detection (per-class F1 = 0.4356). Cross-validation weighted F1 (0.97 – 0.99) is ~22 percentage points higher than the held-out test F1 — a property of NSL-KDD deliberately including unseen attack subtypes in its test split, and a number that papers reporting only CV results quietly hide.
 
 ---
 
@@ -27,107 +30,102 @@ Full discussion: see [`assignment_report/assignment_report.pdf`](assignment_repo
 ```
 .
 ├── src/                       Python source — pipeline, models, evaluation
-│   ├── config.py              Paths, random seed, label map, constants
+│   ├── config.py              Paths, random seed, label map
 │   ├── data_loader.py         NSL-KDD loader + 22-attack → 5-class mapping
-│   ├── preprocess.py          One-hot encode + StandardScaler
+│   ├── preprocess.py          One-hot + StandardScaler
 │   ├── models.py              LR / RF / XGBoost definitions
 │   ├── evaluate.py            Metrics, confusion matrix, feature importance
-│   └── run_experiments.py     End-to-end driver
-├── figures/                   Class distribution, confusion matrices, feature importance plots
+│   └── run_experiments.py     End-to-end driver (script form of the notebook)
+├── notebooks/
+│   └── NID_pipeline.ipynb     Pedagogical Jupyter walkthrough (the runnable prototype)
+├── figures/                   Class distribution, confusion matrices, feature-importance plots
 ├── results/                   comparison.csv + per-model JSON / CSV / .npy
-├── assignment_report/         College submission (LaTeX + PDF, ~18 pages)
-├── research_paper/            IEEE-format paper (LaTeX + PDF, 5 pages)
-├── docs/                      Slides, proposal, speaker notes
+├── assignment_report/         Long-form report (LaTeX + PDF)
+├── research_paper/            IEEE-format paper (LaTeX + PDF) — the assessed deliverable
 ├── requirements.txt
 └── README.md
 ```
 
-The `dataset/` directory is intentionally **not** committed — see below.
+The `dataset/` directory is gitignored on GitHub but is **bundled inside the submitted coursework zip** so the marker can run the project without downloading anything.
 
 ---
 
-## Dataset
+## How to run the project
 
-The NSL-KDD dataset is required to run the pipeline. It is not redistributed here; download it from one of the canonical mirrors:
+Tested on macOS (Apple Silicon) with **Python 3.10+** (developed on 3.13.2).
 
+### 1. Get the dataset
+
+If you are working from the **submission zip**, the dataset is already at
+`dataset/archive/nsl-kdd/` — skip to step 2.
+
+If you are working from **GitHub**, download NSL-KDD and place the two
+text files manually:
+
+```
+dataset/archive/nsl-kdd/
+├── KDDTrain+.txt
+└── KDDTest+.txt
+```
+
+Sources:
 - Kaggle: <https://www.kaggle.com/datasets/hassan06/nslkdd>
 - University of New Brunswick (original): <https://www.unb.ca/cic/datasets/nsl.html>
 
-After download, extract so that the structure looks like:
-
-```
-dataset/
-└── archive/
-    └── nsl-kdd/
-        ├── KDDTrain+.txt
-        └── KDDTest+.txt
-```
-
-The loader reads these two files. The constant `DATASET_DIR` in `src/config.py` controls the path if you place them elsewhere.
-
----
-
-## Reproducing the experiment
-
-Tested on macOS (Apple Silicon) with **Python 3.13.2**.
+### 2. Set up the Python environment
 
 ```bash
-# 1. Clone
-git clone https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION.git
-cd NETWORK-INTRUSION-DETECTION
-
-# 2. Place NSL-KDD under dataset/archive/  (see "Dataset" above)
-
-# 3. Set up the environment
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-
-# 4. (macOS only) XGBoost requires OpenMP
-brew install libomp
-
-# 5. Run the full pipeline
-PYTHONPATH=src .venv/bin/python src/run_experiments.py
+source .venv/bin/activate          # macOS / Linux
+# .venv\Scripts\activate           # Windows PowerShell
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install jupyter
 ```
 
-The driver prints CV scores per fold, fits each model on the SMOTE-resampled training set, evaluates on `KDDTest+`, and writes:
+On macOS, XGBoost requires OpenMP:
+```bash
+brew install libomp
+```
+On Ubuntu / Debian: `sudo apt-get install libomp-dev`.
 
-- `results/comparison.csv` — one row per model with overall metrics
-- `results/<model>_overall.json` — full metric dict
-- `results/<model>_per_class.csv` — per-class precision/recall/F1
-- `figures/cm_<model>.png` — confusion matrices (count + row-normalised)
-- `figures/fi_<model>.png` — feature importance (top 20)
-- `figures/class_distribution.png` — train vs test class distribution (log scale)
+### 3. Run — choose one of the two options
 
-All randomness is seeded with `RANDOM_SEED = 42`.
+**Option A — Jupyter notebook (recommended; the notebook is the assessed prototype):**
+```bash
+jupyter notebook notebooks/NID_pipeline.ipynb
+```
+The notebook ships with execution outputs already saved, so you can either
+open it and read, or *Cell → Run All* to re-execute (~8–10 min).
+
+**Option B — Equivalent script:**
+```bash
+PYTHONPATH=src python src/run_experiments.py
+```
+This produces the same `results/` and `figures/` artefacts as the notebook.
+
+### 4. (Optional) re-build the paper PDF
+
+```bash
+brew install tectonic
+tectonic research_paper/paper.tex
+tectonic assignment_report/assignment_report.tex
+```
 
 ---
 
 ## Methodological choices worth noting
 
-- **SMOTE inside the CV loop, not before it.** Synthetic minority samples are generated only on each fold's training side. Generating them globally first (a common shortcut) leaks information into the validation folds and inflates CV scores.
-- **One-hot encoding over the union of train + test categorical levels.** The NSL-KDD test split contains `service` values absent from training; encoding only on training yields columns of zeros at test time and silently breaks tree splits.
-- **`class_weight="balanced"` for Random Forest and Logistic Regression** as well as SMOTE for XGBoost — covers both reweighting and resampling strategies for imbalance.
-- **Held-out evaluation on the official `KDDTest+` split.** No tuning on the test set; CV is used only on the training partition.
-
----
-
-## Building the reports
-
-Both reports use [Tectonic](https://tectonic-typesetting.github.io/) (no `sudo` install needed):
-
-```bash
-brew install tectonic        # macOS
-
-tectonic assignment_report/assignment_report.tex
-tectonic research_paper/paper.tex
-```
-
-`research_paper/paper.tex` builds the IEEE-format paper; `assignment_report/assignment_report.tex` builds the longer college submission. Both pull figures from `../figures/`.
+- **SMOTE is applied inside each cross-validation fold**, on the training side only. Generating SMOTE samples before splitting (a common shortcut) leaks information into validation folds and inflates CV scores by several points.
+- **One-hot encoding spans the union of train + test categorical levels.** NSL-KDD's test split contains `service` values absent from training; encoding only on training would yield silent zero-columns at test time.
+- **Class-balanced weighting for LR and RF** plus SMOTE for XGBoost — covers both reweighting and resampling strategies for imbalance.
+- **Held-out evaluation on the official KDDTest+ split.** No tuning on the test set; cross-validation is used only on the training partition.
+- **`RANDOM_SEED = 42`** is set everywhere; results are bit-for-bit reproducible.
 
 ---
 
 ## Author
 
-**Sudip Adhikari** · Roll 250578 · M.Sc. Computer Engineering · Softwarica College of IT & E-Commerce (Coventry University) · Kathmandu, Nepal
+**Sudip Adhikari** · 250578 · M.Sc. Computer Engineering · Softwarica College of IT & E-Commerce (Coventry University) · Kathmandu, Nepal · `xudip12@gmail.com`
 
-Coursework project for the Machine Learning module, 2026 cohort.
+Coursework project for **STW7072CEM Machine Learning**, 2026 cohort.
