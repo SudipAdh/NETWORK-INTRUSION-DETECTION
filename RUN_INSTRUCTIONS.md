@@ -70,27 +70,18 @@ XGBoost requires OpenMP. Install it once per machine:
 
 ---
 
-## 3. Get the dataset
+## 3. Dataset
 
-The NSL-KDD dataset is **not** included in this zip (licence + size). Download
-it from one of the canonical mirrors:
+The NSL-KDD dataset (`KDDTrain+.txt` and `KDDTest+.txt`) is **bundled in
+this zip** under `dataset/archive/nsl-kdd/`. No download is required.
+
+If you are looking at the GitHub repository instead of the submitted zip
+(GitHub does not store the dataset), download it manually from:
 
 - Kaggle: <https://www.kaggle.com/datasets/hassan06/nslkdd>
-- University of New Brunswick (original): <https://www.unb.ca/cic/datasets/nsl.html>
+- University of New Brunswick: <https://www.unb.ca/cic/datasets/nsl.html>
 
-Extract the archive so that the structure looks like:
-
-```
-SudipAdhikari_250578/
-└── dataset/
-    └── archive/
-        └── nsl-kdd/
-            ├── KDDTrain+.txt
-            └── KDDTest+.txt
-```
-
-Only `KDDTrain+.txt` and `KDDTest+.txt` are required; other files in the
-archive are ignored by the loader.
+and place the two text files at the path above.
 
 ---
 
