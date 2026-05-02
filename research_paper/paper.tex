@@ -13,15 +13,32 @@
 \usepackage{siunitx}
 \usepackage{xcolor}
 \usepackage{balance}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,backgrounds}
+\usepackage{subcaption}
 
 \graphicspath{{../figures/}}
+
+% TikZ pipeline-block style
+\tikzset{
+    blk/.style={rectangle, rounded corners=2pt, draw=black!60, fill=blue!6,
+                minimum width=2.4cm, minimum height=0.7cm, align=center,
+                font=\footnotesize, inner sep=3pt},
+    blkalt/.style={rectangle, rounded corners=2pt, draw=black!60, fill=orange!12,
+                   minimum width=2.4cm, minimum height=0.7cm, align=center,
+                   font=\footnotesize, inner sep=3pt},
+    blkout/.style={rectangle, rounded corners=2pt, draw=black!60, fill=green!10,
+                   minimum width=2.4cm, minimum height=0.7cm, align=center,
+                   font=\footnotesize, inner sep=3pt},
+    flow/.style={-{Stealth[length=2mm,width=1.5mm]}, draw=black!70, thick}
+}
 
 \begin{document}
 
 \title{A Comparative Study of Three Classical Machine Learning Algorithms for Multi-Class Network Intrusion Detection on the NSL-KDD Dataset}
 
 \author{
-\IEEEauthorblockN{Sudip Adhikari\textsuperscript{1}\thanks{Coursework submission for module \textbf{STW7072CEM Machine Learning}, M.Sc.\ Computer Engineering, Softwarica College of IT \& E-Commerce in collaboration with Coventry University. Student ID: 250578.}}
+\IEEEauthorblockN{Sudip Adhikari\textsuperscript{1}\thanks{Coursework submission for module \textbf{STW7072CEM Machine Learning}, M.Sc.\ Computer Engineering, Softwarica College of IT \& E-Commerce in collaboration with Coventry University. Student ID: 250578. Source code: \url{https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION}. Demo screencast: \url{https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing}.}}
 \IEEEauthorblockA{
 \textsuperscript{1}Softwarica College of IT \& E-Commerce\\
 (Coventry University)\\
@@ -125,6 +142,51 @@ U2R    &       52 &  0.04 &      67 &  0.30 \\
 \section{Methodology}
 %% ============================================================
 
+The end-to-end pipeline is summarised in Fig.~\ref{fig:pipeline}. The remainder of this section motivates each stage in turn.
+
+\begin{figure*}[!t]
+\centering
+\begin{tikzpicture}[node distance=8mm and 7mm]
+    \node[blk]                          (raw)   {KDDTrain+ \\ \tiny 125{,}973 rows, 41 features};
+    \node[blk, right=of raw]            (rawT)  {KDDTest+ \\ \tiny 22{,}544 rows, 41 features};
+    \node[blkalt, below=of raw]         (map)   {22-attack $\rightarrow$ \\ 5-class mapping};
+    \node[blkalt, right=of map]         (mapT)  {22-attack $\rightarrow$ \\ 5-class mapping};
+    \node[blk, below=10mm of map.south west, anchor=north west, minimum width=11.5cm]
+        (oh)    {One-hot encode \texttt{protocol\_type}, \texttt{service}, \texttt{flag}\\
+                 \tiny (encoder fit on \emph{union} of train + test categorical levels; 41 $\rightarrow$ 122 features)};
+    \node[blk, below=of oh, minimum width=11.5cm]
+        (std)   {StandardScaler on 38 numerical features\\
+                 \tiny (fit on training only; transform applied to test)};
+    \node[blkalt, below=of std, minimum width=11.5cm]
+        (cv)    {Stratified 5-fold cross-validation split (training side only)};
+    \node[blkalt, below=of cv, minimum width=11.5cm]
+        (smote) {SMOTE \emph{inside each fold}, on the training side only\\
+                 \tiny (synthetic minority oversampling -- never applied to validation or held-out test)};
+    \node[blk, below=of smote.south west, anchor=north west, minimum width=3.6cm] (lr)  {Logistic Regression\\\tiny multinomial, L-BFGS, max\_iter=1000};
+    \node[blk, right=of lr, minimum width=3.6cm]                                  (rf)  {Random Forest\\\tiny 100 trees, class\_weight=balanced};
+    \node[blk, right=of rf, minimum width=3.6cm]                                  (xgb) {XGBoost\\\tiny 200 trees, depth 6, lr 0.1, hist};
+    \node[blkout, below=10mm of rf, minimum width=11.5cm]
+        (eval)  {Held-out evaluation on KDDTest+\\
+                 \tiny accuracy, weighted F1, macro F1, ROC-AUC (OvR), per-class precision/recall/F1, confusion matrices};
+
+    \draw[flow] (raw)   -- (map);
+    \draw[flow] (rawT)  -- (mapT);
+    \draw[flow] (map.south)  |- ([yshift=2mm]oh.north -| map.south);
+    \draw[flow] (mapT.south) |- ([yshift=2mm]oh.north -| mapT.south);
+    \draw[flow] (oh)    -- (std);
+    \draw[flow] (std)   -- (cv);
+    \draw[flow] (cv)    -- (smote);
+    \draw[flow] (smote.south) |- ([yshift=2mm]lr.north  -| smote.south);
+    \draw[flow] (smote.south) |- ([yshift=2mm]rf.north  -| smote.south);
+    \draw[flow] (smote.south) |- ([yshift=2mm]xgb.north -| smote.south);
+    \draw[flow] (lr.south)  |- ([yshift=2mm]eval.north -| lr.south);
+    \draw[flow] (rf.south)  -- (eval.north -| rf.south);
+    \draw[flow] (xgb.south) |- ([yshift=2mm]eval.north -| xgb.south);
+\end{tikzpicture}
+\caption{End-to-end pipeline. Blue blocks are deterministic data-preparation steps; orange blocks involve resampling or splitting; the green block is the held-out evaluation. The encoder is intentionally fit on the union of train+test categorical levels because NSL-KDD's test split contains \texttt{service} values absent from training; SMOTE is applied per fold (never pre-pooled) so synthetic minority samples cannot leak into validation.}
+\label{fig:pipeline}
+\end{figure*}
+
 \subsection{Preprocessing}
 
 The three categorical features (\texttt{protocol\_type} with 3 values, \texttt{service} with roughly 70 values, and \texttt{flag} with 11 values) are one-hot encoded. Encoding is applied to the union of train and test categories so that any service strings that appear only in the test set --- of which NSL-KDD has several --- are still represented. After encoding, the feature dimensionality grows from 41 to 122.
@@ -139,13 +201,15 @@ A subtle but important detail is \emph{when} to apply SMOTE. We apply it inside 
 
 \subsection{Algorithms}
 
-\textbf{Logistic Regression (LR)} is a linear, probabilistic classifier. We use the multinomial formulation with the L-BFGS solver and a maximum of 1{,}000 iterations. LR provides a baseline against which non-linear models can be compared.
+The three algorithms were chosen to span three distinct hypothesis classes: a linear model, a bagging-style ensemble of independent trees, and a sequential boosting ensemble of weak trees. This makes the comparison structurally informative -- if a particular class of attacks is invisible to all three families, the failure is unlikely to be an idiosyncratic artefact of one model.
 
-\textbf{Random Forest (RF)}~\cite{breiman2001} is a bagging ensemble of decision trees trained on bootstrap samples with random feature subsetting at each split. We use 100 trees with no maximum depth and class-balanced weighting at the leaf level.
+\textbf{Logistic Regression (LR)} is a linear, probabilistic classifier that learns one weight vector per class and converts a weighted sum of features into a softmax-normalised probability distribution. We use the multinomial formulation with the L-BFGS solver and a maximum of 1{,}000 iterations; class-balanced weighting is applied at training time. LR provides a strong, interpretable baseline against which non-linear models can be compared. Its per-class probabilistic outputs also make it the most direct fit for risk-weighted operating-point selection in a deployed IDS.
 
-\textbf{XGBoost}~\cite{chen2016} is a gradient-boosting ensemble that fits trees sequentially, where each tree is trained to correct the residual errors of the trees that came before it. We use 200 trees of maximum depth 6, a learning rate of 0.1, and the histogram-based tree construction algorithm for speed.
+\textbf{Random Forest (RF)}~\cite{breiman2001} is a bagging ensemble of decision trees trained on bootstrap samples of the training set with random feature subsetting at each split. We use 100 trees with no maximum depth and class-balanced weighting at the leaf level. Random Forest's principal advantage on intrusion data is its robustness to outliers and to features on heterogeneous scales: encoded categorical indicators and unbounded numerical counts coexist in the NSL-KDD feature space, and a tree-based model splits each axis independently.
 
-We have intentionally kept hyperparameters conservative. Heavy tuning would obscure the comparison because each algorithm has a different sensitivity to its hyperparameter space, and aggressive tuning of one model would not reflect a fair comparison.
+\textbf{XGBoost}~\cite{chen2016} is a gradient-boosting ensemble that fits trees sequentially, where each tree is trained to correct the residual errors of the trees that came before it. We use 200 trees of maximum depth 6, a learning rate of 0.1, an L2 regularisation parameter of 1.0, and the histogram-based tree construction algorithm for speed. The depth limit of 6 was deliberate: deeper trees memorise the training distribution more aggressively, which is precisely the failure mode we wish to avoid given that NSL-KDD's test set is drawn from a partly different distribution to its training set. The learning rate of 0.1 with 200 estimators was chosen to keep the boosting trajectory smooth; smaller learning rates with more trees were tried during exploratory work and offered only marginal gains at substantially higher training cost.
+
+\textbf{Hyperparameter philosophy.} We intentionally kept hyperparameters conservative across all three models. Heavy tuning would obscure the comparison: each algorithm has a different sensitivity to its hyperparameter space, and aggressive tuning of one model would no longer be like-for-like. The reported numbers should therefore be read as ``what an off-the-shelf, sensibly configured version of each algorithm achieves,'' which is the more useful baseline for practitioners choosing between them than a heavily-engineered point estimate.
 
 \subsection{Evaluation}
 
@@ -171,24 +235,33 @@ Table~\ref{tab:overall} summarises the held-out test results. XGBoost leads on a
 
 \begin{table}[!ht]
 \centering
-\caption{Overall performance on KDDTest+. CV F1 is the mean weighted F1 across 5 folds on the training set.}
+\caption{Overall performance on KDDTest+ and training cost. CV F1 is the mean weighted F1 across 5 stratified folds on the training set; train time is wall-clock seconds for the final fit on the full SMOTE-resampled training data (single CPU).}
 \label{tab:overall}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccr}
 \toprule
-Algorithm & Acc.\,(\%) & Wt.\,F1 & Macro\,F1 & AUC \\
+Algorithm & Acc.\,(\%) & Wt.\,F1 & Macro\,F1 & AUC & Train (s) \\
 \midrule
-LR      & 77.91 & 0.7631 & 0.5745 & 0.8970 \\
-RF      & 75.05 & 0.7112 & 0.5382 & 0.9476 \\
-XGBoost & \textbf{78.66} & 0.7582 & \textbf{0.6337} & \textbf{0.9537} \\
+LR      & 77.91 & 0.7631 & 0.5745 & 0.8970 & 330.3 \\
+RF      & 75.05 & 0.7112 & 0.5382 & 0.9476 & \textbf{53.8} \\
+XGBoost & \textbf{78.66} & 0.7582 & \textbf{0.6337} & \textbf{0.9537} & 90.1 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The most striking observation does not appear in Table~\ref{tab:overall} directly. The cross-validation weighted F1 scores were 0.9756 (LR), 0.9987 (RF), and 0.9991 (XGBoost) --- effectively perfect. The held-out test scores fall by roughly 22 percentage points. This gap is not overfitting in the usual sense; it is a property of the dataset. KDDTest+ contains attack subtypes that do not appear in KDDTrain+, so the cross-validation score reflects performance on the training distribution while the test score reflects performance on a different distribution. Studies that omit the held-out evaluation often quote the cross-validation scores and create the impression of solved problem. They are reporting the wrong number.
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=\columnwidth]{cv_vs_test_gap.png}
+\caption{Cross-validation versus held-out test gap (weighted F1). Cross-validation scores are within $\sim$0.02 of perfection for all three models, but held-out scores fall by 21--29 percentage points. The gap is a property of NSL-KDD's distributional design, not overfitting in the conventional sense.}
+\label{fig:cv-gap}
+\end{figure}
+
+The most striking observation does not appear in Table~\ref{tab:overall} directly. The cross-validation weighted F1 scores were 0.9756 (LR), 0.9987 (RF), and 0.9991 (XGBoost) -- effectively perfect. The held-out test scores fall by 21.3, 28.7, and 24.1 percentage points respectively (Fig.~\ref{fig:cv-gap}). This gap is not overfitting in the usual sense; it is a property of the dataset. KDDTest+ contains attack subtypes that do not appear in KDDTrain+, so the cross-validation score reflects performance on the training distribution while the test score reflects performance on a different distribution. Studies that omit the held-out evaluation often quote the cross-validation scores and create the impression of solved problem. They are reporting the wrong number.
+
+A secondary observation about Table~\ref{tab:overall} concerns training cost. Random Forest is roughly six times faster to train than Logistic Regression on this problem, which is initially counter-intuitive but reflects two compounding effects: LR's iterative L-BFGS solver requires many passes over a 122-feature, $\sim$390{,}000-row SMOTE-resampled training matrix, while RF's per-tree training is heavily parallelised in scikit-learn and stops at the first leaf-purity criterion per branch. XGBoost sits in between because the boosting trees are sequential, but each tree is shallow (depth 6) and uses the histogram approximation. For the three-paradigm comparison reported here, the training-time differences are not large enough to dominate the choice in practice; the per-class accuracy differences in Section V-B are.
 
 \subsection{Per-Class Performance}
 
-Table~\ref{tab:perclass} reports per-class F1 on KDDTest+. The pattern is consistent across all three models: Normal and DoS are easy, Probe is moderate, R2L is hard, U2R is hardest.
+Table~\ref{tab:perclass} reports per-class F1 on KDDTest+ and Fig.~\ref{fig:per-class-f1} visualises the same numbers. The pattern is consistent across all three models: Normal and DoS are easy, Probe is moderate, R2L is hard, U2R is hardest.
 
 \begin{table*}[!ht]
 \centering
@@ -198,46 +271,101 @@ Table~\ref{tab:perclass} reports per-class F1 on KDDTest+. The pattern is consis
 \toprule
 Algorithm & Normal & DoS & Probe & R2L & U2R \\
 \midrule
-LR      & 0.8058 & 0.9028 & 0.7344 & 0.2976 & 0.1320 \\
+LR      & 0.8058 & \textbf{0.9028} & 0.7344 & \textbf{0.2976} & 0.1320 \\
 RF      & 0.7800 & 0.8447 & 0.7614 & 0.1048 & 0.2000 \\
 XGBoost & \textbf{0.8095} & 0.8788 & \textbf{0.7848} & 0.2597 & \textbf{0.4356} \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.95\textwidth]{per_class_f1_comparison.png}
+\caption{Per-class F1 on KDDTest+ for all three models. The Normal/DoS/Probe block is broadly easy; R2L and U2R collapse for every algorithm. XGBoost is the only model that obtains a useful U2R F1 ($\sim$0.44 vs.\ 0.20 and 0.13).}
+\label{fig:per-class-f1}
+\end{figure*}
+
 XGBoost is the only model that obtains a usable F1 on U2R (0.4356, versus 0.20 and 0.13). On R2L, however, all three models struggle: even XGBoost only recalls 15\% of R2L attacks on the test set. Logistic Regression actually achieves the best R2L F1 (0.2976), which is at first surprising but consistent with the literature: linear models with class-balanced training tend to produce more diffuse decision boundaries that occasionally help on noisy minority classes.
 
-\begin{figure}[!ht]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=\columnwidth]{cm_xgboost.png}
-\caption{XGBoost confusion matrix on KDDTest+, with raw counts (left) and row-normalised (right) so the diagonal is per-class recall.}
-\label{fig:cm-xgb}
-\end{figure}
+\begin{subfigure}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{cm_logistic_regression.png}
+    \caption{Logistic Regression}
+    \label{fig:cm-lr}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{cm_random_forest.png}
+    \caption{Random Forest}
+    \label{fig:cm-rf}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{cm_xgboost.png}
+    \caption{XGBoost}
+    \label{fig:cm-xgb}
+\end{subfigure}
+\caption{Confusion matrices on KDDTest+ for each model: raw counts (left in each panel) and row-normalised so the diagonal is per-class recall (right). All three models leak R2L and U2R attacks into the Normal class; XGBoost retains the most U2R recall.}
+\label{fig:cms}
+\end{figure*}
 
-The XGBoost confusion matrix in Fig.~\ref{fig:cm-xgb} shows where the failures land. 84\% of R2L test attacks are misclassified as Normal, and 61\% of U2R attacks are also misclassified as Normal. The security implication is sobering: these are the most dangerous attacks in the dataset (unauthorised remote access and privilege escalation), and the model is most confident in calling them benign. Anyone deploying a classical-ML detector against R2L-class threats should expect a high false-negative rate and plan compensating controls accordingly.
+The full confusion matrices are shown in Fig.~\ref{fig:cms}. The XGBoost panel (Fig.~\ref{fig:cm-xgb}) shows where the failures concentrate: 84\% of R2L test attacks are misclassified as Normal, and 61\% of U2R attacks are also misclassified as Normal. The security implication is sobering: these are the most dangerous attacks in the dataset (unauthorised remote access and privilege escalation), and the model is most confident in calling them benign. Random Forest (Fig.~\ref{fig:cm-rf}) shows an even more extreme failure mode -- it only recalls 5.5\% of R2L attacks, with the rest absorbed by the Normal class. Logistic Regression (Fig.~\ref{fig:cm-lr}), in contrast, distributes its R2L errors more across DoS and Probe rather than collapsing them entirely into Normal, which is what gives it the best R2L F1 of the three. Anyone deploying a classical-ML detector against R2L-class threats should expect a high false-negative rate and plan compensating controls accordingly.
 
 \subsection{Feature Importance}
 
-\begin{figure}[!ht]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=\columnwidth]{fi_xgboost.png}
-\caption{Top 15 feature importances from XGBoost.}
-\label{fig:fi-xgb}
-\end{figure}
+\begin{subfigure}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{fi_logistic_regression.png}
+    \caption{Logistic Regression (mean $|$coefficient$|$)}
+    \label{fig:fi-lr}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{fi_random_forest.png}
+    \caption{Random Forest (mean impurity decrease)}
+    \label{fig:fi-rf}
+\end{subfigure}
+\hfill
+\begin{subfigure}[t]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{fi_xgboost.png}
+    \caption{XGBoost (split-gain importance)}
+    \label{fig:fi-xgb}
+\end{subfigure}
+\caption{Top-15 feature importance for each model. Importance is defined differently per model (mean absolute coefficient, mean impurity decrease, split gain) so absolute scales are not directly comparable, but the dominant features overlap substantially: \texttt{service\_eco\_i}, \texttt{flag\_S0}, and \texttt{service\_*} indicators recur in every ranking.}
+\label{fig:fi-all}
+\end{figure*}
 
-Fig.~\ref{fig:fi-xgb} shows the top 15 features ranked by XGBoost importance. The top three (\texttt{service\_eco\_i}, \texttt{flag\_S0}, \texttt{service\_telnet}) account for roughly 40\% of the model's split decisions. \texttt{service\_eco\_i} indicates ICMP echo traffic, which appears heavily in probe attacks; \texttt{flag\_S0} marks connections where a SYN was sent but no SYN-ACK was returned, a textbook signature of SYN-flood and port-scan behaviour; \texttt{service\_telnet} flags Telnet traffic, which is rare in legitimate modern environments but heavily present in R2L brute-force attempts. These are quantities that a network administrator would already monitor; the value of the ML model is that it weighs them quantitatively and combines them with thirty-eight other signals.
+Fig.~\ref{fig:fi-all} shows the top 15 features for each model. ``Importance'' has a different definition for each algorithm -- mean absolute coefficient for LR, mean impurity decrease for RF, and split-gain for XGBoost -- so the absolute numbers are not directly comparable across models. The \emph{ranking}, however, is striking. Three families of features appear in the top of every model's list:
+
+\begin{itemize}
+    \item \texttt{service\_eco\_i} -- the ICMP echo service, used heavily in Probe attacks (\texttt{ipsweep}, \texttt{satan}, \texttt{nmap}).
+    \item \texttt{flag\_S0} -- connections in which the source sent a SYN but no SYN-ACK or other completion was observed. This is the textbook fingerprint of port scanning and SYN-flood denial of service.
+    \item \texttt{service\_*} indicators in general -- \texttt{telnet}, \texttt{ftp}, \texttt{http}, \texttt{private} all appear in the top tier. Telnet in particular shows up because it is rare in legitimate modern environments but heavily present in R2L brute-force attempts.
+\end{itemize}
+
+The XGBoost top-three (\texttt{service\_eco\_i}, \texttt{flag\_S0}, \texttt{service\_telnet}) account for roughly 40\% of the model's split decisions. The fact that linear, bagging, and boosting models converge on the same handful of top features is itself a useful sanity check: the signal in NSL-KDD is concentrated in a few network-flow attributes that any competent network analyst already monitors, which makes the model's reasoning auditable rather than opaque. A practitioner shipping any of these three models can confidently explain to a non-ML stakeholder \emph{why} a particular connection was flagged.
 
 \subsection{Discussion}
 
-A few patterns deserve emphasis.
+Five patterns deserve emphasis.
 
-First, the difference between cross-validation scores and held-out test scores is the single largest effect in the experiment, larger than the differences between models. Studies that report only cross-validation results are not measuring what they appear to be measuring.
+First, the difference between cross-validation scores and held-out test scores (Fig.~\ref{fig:cv-gap}) is the single largest effect in the experiment, larger than the differences between models. Studies that report only cross-validation results are not measuring what they appear to be measuring.
 
-Second, the choice of metric matters enormously when the dataset is imbalanced. Weighted F1 and accuracy both place XGBoost and LR within roughly one percentage point of each other; macro F1 separates them by six points. On real intrusion detection deployments, where missing a single U2R attack is much worse than misclassifying ten Normal connections, macro F1 is the metric to optimise.
+Second, the choice of metric matters enormously when the dataset is imbalanced. Weighted F1 and accuracy both place XGBoost and LR within roughly one percentage point of each other; macro F1 separates them by nearly six points. On real intrusion-detection deployments, where missing a single U2R attack is much worse than misclassifying ten Normal connections, macro F1 is the metric to optimise.
 
-Third, ensemble methods are not uniformly better. Random Forest is faster to train than XGBoost but loses on every test-set metric except precision. The sequential boosting in XGBoost meaningfully helps on the rare classes, suggesting that the residual-fitting nature of boosting genuinely lets later trees specialise in the minority cases that earlier trees miss.
+Third, ensemble methods are not uniformly better. Random Forest is faster to train than XGBoost but loses on every test-set metric except precision. The sequential boosting in XGBoost meaningfully helps on the rare classes (Fig.~\ref{fig:per-class-f1}), suggesting that the residual-fitting nature of boosting genuinely lets later trees specialise in the minority cases that earlier trees miss. Bagging, in contrast, averages out the rare-class signal and inherits the majority-class bias of its constituent trees.
 
-Fourth, even the best model in this study would be insufficient as a standalone production detector for R2L-class threats. The 15\% recall on R2L means that 85\% of these attacks would slip through. This is a known limitation of NSL-KDD and of classical approaches in general; production systems would need to layer additional detection (anomaly-based, payload-inspection, behavioural) to compensate.
+Fourth, all three models share their dominant features (Fig.~\ref{fig:fi-all}), which means the dataset's signal is concentrated rather than diffuse. This has a practical implication: a deployed IDS does not need to compute all 122 encoded features for fast triage -- a much smaller feature subset would already retain most of the discriminative power, and a hierarchical detector that starts from those features would be cheaper to evaluate per packet.
+
+Fifth, even the best model in this study would be insufficient as a standalone production detector for R2L-class threats. The 15\% recall on R2L means that 85\% of these attacks would slip through. This is a known limitation of NSL-KDD and of classical approaches in general; production systems would need to layer additional detection (anomaly-based, payload-inspection, behavioural) to compensate. The choice between the three models studied here is therefore not a choice between ``acceptable'' and ``unacceptable'' detectors -- it is a choice of which compromise to accept while the rare-class problem is being addressed by complementary controls.
 
 %% ============================================================
 \section{Social, Ethical, Legal, and Professional Considerations}
@@ -268,12 +396,15 @@ The work has clear limitations. We used a single benchmark dataset, restricted t
 \section*{Acknowledgements}
 The author thanks Softwarica College of IT \& E-Commerce and Coventry University for the academic environment in which this work was carried out, and the maintainers of the NSL-KDD dataset for providing a benchmark that has supported two decades of intrusion detection research.
 
-\section*{Reproducibility}
-The complete source code, LaTeX sources, generated figures, per-model result files, and a Jupyter notebook reproducing every experiment are publicly available at:
+\section*{Reproducibility and Supplementary Material}
+The complete source code, LaTeX sources, generated figures, per-model result files, and a pedagogical Jupyter notebook (45 cells with embedded outputs) reproducing every experiment are publicly available at:
 \begin{center}
-\url{https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION}
+\textbf{Source code (GitHub):}\\
+\url{https://github.com/SudipAdh/NETWORK-INTRUSION-DETECTION}\\[2pt]
+\textbf{Demo screencast (Google Drive):}\\
+\url{https://drive.google.com/file/d/12qWAM443JASkQnvJphx7Uv3OxtabJP6s/view?usp=sharing}
 \end{center}
-The repository includes a README with download links for NSL-KDD and a step-by-step run script. All randomness is seeded with \texttt{RANDOM\_SEED = 42}; results in this paper are reproducible bit-for-bit on a Python 3.13 environment with the package versions pinned in \texttt{requirements.txt}.
+The repository includes a README with run instructions, dataset download links, and a one-command reproduction script. All randomness is seeded with \texttt{RANDOM\_SEED = 42}; results in this paper are reproducible bit-for-bit on a Python 3.13 environment with the package versions pinned in \texttt{requirements.txt}. The screencast is a short walkthrough of the Jupyter notebook running end-to-end on the author's machine and is intended for reviewers who prefer not to set up the environment locally.
 
 %% ============================================================
 \appendix
